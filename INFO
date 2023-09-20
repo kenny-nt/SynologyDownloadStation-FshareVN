@@ -1,10 +1,10 @@
 {
 	"name": "FshareVN",
 	"hostprefix": "fshare.vn",
-	"displayname": "fshare.vn",
+	"displayname": "FshareVN",
 	"version": "1.5",
 	"authentication": "yes",
-	"module": "host.php",
+	"module": "fsharevn.php",
 	"class": "SynoFileHostingFshareVN",
 	"description": "Premium, Free or No Account Supported."
 }
