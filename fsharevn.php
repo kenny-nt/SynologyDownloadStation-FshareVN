@@ -8,8 +8,8 @@ class SynoFileHostingFshareVN {
     private $Password;
     private $HostInfo;
     private $AppUrl     = 'https://api.fshare.vn/api/';
-    private $UserAgent  = 'SynologyDownloadPlugin-BT14DT';
-    private $AppKey     = 'dMnqMMZMUnN5YpvKENaEhdQQ5jxDqddt';
+    private $UserAgent  = 'Enter your app user-agent here';
+    private $AppKey     = 'Enter Fshare API Key here';
     private $COOKIE_JAR = '/tmp/fsharevn.cookie';
     private $LOG_FILE   = '/tmp/fsharevn.log';
     private $TOKEN_FILE = '/tmp/fsharevn.token';
@@ -32,9 +32,8 @@ class SynoFileHostingFshareVN {
     }
     
     public function Verify($ClearCookie) {
-        if(file_exists($this->COOKIE_JAR)) {
-            unlink($this->COOKIE_JAR);
-        }
+        if ( file_exists($this->COOKIE_JAR) ) unlink($this->COOKIE_JAR);
+        if ( file_exists($this->TOKEN_FILE) ) unlink($this->TOKEN_FILE);
             
         return $this->performLogin();
     }
@@ -44,21 +43,15 @@ class SynoFileHostingFshareVN {
 
         $this->logInfo("Start getting download info");
 
-        $needLogin = FALSE;
-        $this->logInfo("Checking if need to re-login");
+        $newLogin = FALSE;
         
         $this->Token = $this->getToken();
-        if(empty($this->Token)) {
-            $this->logInfo("Token is empty => need to login to get token");
-            $needLogin = TRUE;
-        }
-        
-        if(!file_exists($this->COOKIE_JAR)) {
-            $this->logInfo("Cookie file is not existed => need to login to get cookie");
-            $needLogin = TRUE;
+        if ( (empty($this->Token)) || (!file_exists($this->COOKIE_JAR)) ) {
+            $newLogin = TRUE;
         }
 
-        if($needLogin) {
+        if($newLogin) {
+            $this->logInfo("Cookie/Token file is not existed => need to login to get them");
             // login to get authentication info
             if($this->Verify(FALSE) === LOGIN_FAIL) {
                 $DownloadInfo[DOWNLOAD_ERROR] = "Login fail!";
@@ -69,25 +62,31 @@ class SynoFileHostingFshareVN {
         $downloadUrl = $this->getLink();
         
         if(empty($downloadUrl) || $downloadUrl === "error") {
-            
-            // get link may fail due to use expired token / cookie
-            // => login and retry once
-            if(!$needLogin) {
-                $this->logInfo("Token/Cookie is expired. Login and try once");
-                if($this->Verify(FALSE) === LOGIN_FAIL) {
-                    $DownloadInfo[DOWNLOAD_ERROR] = "Login fail!";
-                    return $DownloadInfo;
-                }
-
-                $downloadUrl = $this->getLink();        
+            if ($newLogin) {
+                $DownloadInfo[DOWNLOAD_ERROR] = "Get link fail"; 
+                return $DownloadInfo;
             }
 
-            $DownloadInfo[DOWNLOAD_ERROR] = "Get link fail";   
-        } else {
-            $DownloadInfo[DOWNLOAD_URL] = $downloadUrl;
-        }
+            // get link may fail due to use expired token / cookie
+            // => login and retry once
+            
+            // $this->logInfo("Token/Cookie may be expired. Login and try once");
+            if($this->Verify(FALSE) === LOGIN_FAIL) {
+                $DownloadInfo[DOWNLOAD_ERROR] = "Login fail!";
+                return $DownloadInfo;
+            }
 
-        $this->logInfo("End getting download info");
+            $downloadUrl = $this->getLink();
+            if(empty($downloadUrl) || $downloadUrl === "error") {
+                $DownloadInfo[DOWNLOAD_ERROR] = "Get link fail"; 
+                return $DownloadInfo;
+            }
+            
+        }
+        
+        $DownloadInfo[DOWNLOAD_URL] = $downloadUrl;
+
+        // $this->logInfo("End getting download info");
 
         return $DownloadInfo;
 
@@ -176,7 +175,7 @@ class SynoFileHostingFshareVN {
         } else {
             $downloadUrl = json_decode($curl_response)->{'location'};
 
-            $this->logInfo("Get link ok");
+            // $this->logInfo("Get link ok");
 
             $ret = $downloadUrl;
         }
@@ -208,14 +207,12 @@ class SynoFileHostingFshareVN {
 
 
     private function getToken() {
-        if(file_exists($this->COOKIE_JAR)) {
+        if (file_exists($this->TOKEN_FILE)) {
             $myfile = fopen($this->TOKEN_FILE, "r");
             $token = fgets($myfile);
             fclose($myfile);
             return $token;
-        }
-        else
-        {
+        } else {
             return "";
         }
     }
